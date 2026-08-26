@@ -1,0 +1,13 @@
+# DanceBuddy API — web-layer dependencies.
+#
+# INSTALL THESE INTO THE BACKEND'S VENV (dancebuddy-backend/.venv): the API runs the CV
+# pipeline in-process, so it needs the backend's deps (torch, ultralytics, opencv) too.
+#   source ../dancebuddy-backend/.venv/bin/activate && pip install -r requirements.txt
+
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9        # lets FastAPI parse uploaded files (multipart forms)
+
+# --- test only ---
+httpx>=0.27                    # required by fastapi.testclient
+pytest>=8.0

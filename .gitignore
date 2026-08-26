@@ -1,0 +1,52 @@
+# ===== DanceBuddy — root .gitignore =====
+
+# OS
+.DS_Store
+
+# Secrets / environment (NEVER commit — contains API keys, URLs)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+*.log
+npm-debug.log*
+
+# Editor / local tooling
+.vscode/*
+!.vscode/extensions.json
+.claude/
+
+# ML model weights (auto-downloaded on first run)
+*.pt
+
+# Backend runtime artifacts
+dancebuddy-api/media/
+*_frames/
+uploads/
+
+# Large local test videos (keep on your machine, not in the repo)
+test files/
+
+# Local dev-only demo crutch (not for production)
+dancebuddy-frontend/public/demo-*
+
+# Local docs & working notes (kept on your machine, not published to the repo)
+/CLAUDE.md
+/2026-07-21/
+/annotated-code/
+/frontend-spec/
+/dancebuddy-frontend/SPEC copy.md
+/dancebuddy-frontend/design-system/
+/dancebuddy-backend/app/reference/

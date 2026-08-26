@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# OS
+.DS_Store
+
+# Model weights (auto-downloaded by ultralytics)
+*.pt
+
+# Runtime artifacts
+*_frames/          # extracted frame folders
+uploads/           # uploaded videos (server temp)
+*.mp4
+*.mov
+*.avi
