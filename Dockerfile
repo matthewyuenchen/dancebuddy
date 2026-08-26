@@ -25,5 +25,6 @@ RUN python -c "from ultralytics import YOLO; YOLO('yolov8n-pose.pt')"
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 7860
-# Honor the host's $PORT (Cloud Run sets it) and fall back to 7860 for local runs.
-CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-7860}"]
+# hypercorn serves HTTP/2 cleartext (h2c), which lets Cloud Run accept requests larger than
+# the 32 MiB HTTP/1 limit. Honor the host's $PORT (Cloud Run sets it); fall back to 7860 locally.
+CMD ["sh", "-c", "hypercorn server:app --bind 0.0.0.0:${PORT:-7860}"]
