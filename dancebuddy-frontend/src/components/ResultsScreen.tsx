@@ -38,28 +38,58 @@ export function ResultsScreen({ result, onReset }: Props) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [showScore, setShowScore] = useState(false);
-  const timer = useRef<number | null>(null);
+  const userElRef = useRef<HTMLVideoElement | null>(null);
+  const refElRef = useRef<HTMLVideoElement | null>(null);
+  const indexRef = useRef(index);
+  indexRef.current = index;
   const clamp = (i: number) => Math.max(0, Math.min(total - 1, i));
 
+  // Native playback: play both videos and follow the user video's real position, mapping it
+  // to the matching aligned frame. The sync keeps the two clips at a constant time offset, so
+  // playing both at normal speed keeps them aligned without any per-frame seeking.
   useEffect(() => {
     if (!playing) return;
-    if (total <= 1) {
+    const u = userElRef.current;
+    const r = refElRef.current;
+    if (!u || total <= 1) {
       setPlaying(false);
       return;
     }
-    timer.current = window.setInterval(() => {
-      setIndex((i) => {
-        if (i >= total - 1) {
-          setPlaying(false);
-          return i;
-        }
-        return i + 1;
-      });
-    }, 110);
-    return () => {
-      if (timer.current) window.clearInterval(timer.current);
+
+    let start = indexRef.current;
+    if (start >= total - 1) {
+      start = 0;
+      setIndex(0);
+    }
+    try {
+      u.currentTime = frames[start].user.timestamp;
+      if (r) r.currentTime = frames[start].reference.timestamp;
+    } catch {
+      /* metadata not ready */
+    }
+    void u.play().catch(() => {});
+    void r?.play().catch(() => {});
+
+    let raf = 0;
+    const tick = () => {
+      const t = u.currentTime;
+      let k = indexRef.current;
+      while (k < total - 1 && frames[k + 1].user.timestamp <= t) k++;
+      if (k !== indexRef.current) setIndex(k);
+      if (k >= total - 1 || u.ended) {
+        setPlaying(false);
+        return;
+      }
+      raf = requestAnimationFrame(tick);
     };
-  }, [playing, total]);
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      u.pause();
+      r?.pause();
+    };
+  }, [playing, total, frames]);
 
   // fetch each clip as a blob → same-origin blob URL (cross-origin <video> won't load)
   const [userSrc, setUserSrc] = useState("");
@@ -126,12 +156,16 @@ export function ResultsScreen({ result, onReset }: Props) {
           side={current.user}
           errorConnections={current.error_connections}
           label="Your video"
+          isPlaying={playing}
+          videoElRef={userElRef}
         />
         <VideoWithOverlay
           videoUrl={refSrc}
           side={current.reference}
           errorConnections={current.error_connections}
           label="Reference"
+          isPlaying={playing}
+          videoElRef={refElRef}
         />
       </div>
 

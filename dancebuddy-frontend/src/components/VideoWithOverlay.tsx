@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import type { Side } from "../api";
 import { contentRect, drawSkeleton } from "../skeleton";
 
@@ -10,16 +11,35 @@ interface Props {
   side: Side;
   errorConnections: string[];
   label: string;
+  isPlaying: boolean;
+  videoElRef?: RefObject<HTMLVideoElement | null>;
 }
 
-export function VideoWithOverlay({ videoUrl, side, errorConnections, label }: Props) {
+export function VideoWithOverlay({
+  videoUrl,
+  side,
+  errorConnections,
+  label,
+  isPlaying,
+  videoElRef,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [videoAspect, setVideoAspect] = useState(0);
 
-  // Seek the paused video to this frame's timestamp.
+  // Expose the underlying <video> to the parent so it can drive native playback.
   useEffect(() => {
+    if (videoElRef) videoElRef.current = videoRef.current;
+    return () => {
+      if (videoElRef) videoElRef.current = null;
+    };
+  }, [videoElRef]);
+
+  // Seek to this frame's timestamp only when paused. During playback the parent lets the
+  // video play natively, so seeking here would fight it.
+  useEffect(() => {
+    if (isPlaying) return;
     const v = videoRef.current;
     if (v && Number.isFinite(side.timestamp)) {
       try {
@@ -28,7 +48,7 @@ export function VideoWithOverlay({ videoUrl, side, errorConnections, label }: Pr
         /* metadata not ready yet */
       }
     }
-  }, [side.timestamp]);
+  }, [side.timestamp, isPlaying]);
 
   // Draw the skeleton into the video's letterboxed area, redrawing on resize.
   useLayoutEffect(() => {
