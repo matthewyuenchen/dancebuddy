@@ -1,15 +1,3 @@
-# DanceBuddy backend — Python deps
-# Required Python: 3.12  (create the venv with 3.12: `uv venv --python 3.12`)
-
-# --- Phase 1: core pipeline ---
-ultralytics>=8.1        # YOLO-pose. Pulls in torch (PyTorch), torchvision, opencv, numpy.
-#                         YOLO-pose outputs 17 COCO keypoints natively = our canonical format.
-#                         Model weights (yolov8n-pose.pt) auto-download on first inference.
-
-# --- Phase 2: API layer (uncomment when we build it) ---
-# fastapi>=0.110
-# uvicorn[standard]>=0.29
-# python-multipart>=0.0.9   # file uploads
-
-# --- dev ---
+# Pipeline dependencies (Python 3.12).
+ultralytics>=8.1        # YOLO-pose; pulls in torch, torchvision, opencv, numpy.
 pytest>=8.0

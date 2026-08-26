@@ -1,0 +1,13 @@
+**/.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/*.pt
+dancebuddy-api/media
+dancebuddy-frontend
+test files
+.git
+2026-07-21
+annotated-code
+frontend-spec
+design-system

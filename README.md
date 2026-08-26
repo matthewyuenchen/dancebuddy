@@ -52,3 +52,9 @@ Set `VITE_API_URL` to point the frontend at a non-default backend URL.
 cd dancebuddy-backend && python -m pytest    # pipeline logic
 cd dancebuddy-api && pytest                  # API contract
 ```
+
+## Deployment
+
+The backend runs as a container via the root `Dockerfile` (FastAPI + the pipeline, listening
+on port 7860). Set `ALLOWED_ORIGINS` to the deployed frontend URL so CORS permits it. The
+frontend is a static Vite build; set `VITE_API_URL` to the backend URL at build time.

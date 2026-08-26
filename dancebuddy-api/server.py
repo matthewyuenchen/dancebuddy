@@ -4,6 +4,8 @@ result JSON with a playback_url per side. Needs ffmpeg on PATH."""
 
 from __future__ import annotations
 
+import contextlib
+import os
 import pathlib
 import shutil
 import subprocess
@@ -23,9 +25,11 @@ from fastapi.staticfiles import StaticFiles
 
 from app.pipeline.analyze import analyze
 
+# localhost for dev, plus any origins passed via the ALLOWED_ORIGINS env var (comma-separated).
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
+    *[o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()],
 ]
 ALLOWED_EXTENSIONS = {".mp4", ".mov"}
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024
@@ -36,7 +40,21 @@ MEDIA_DIR = pathlib.Path(__file__).resolve().parent / "media"
 MEDIA_DIR.mkdir(exist_ok=True)
 MEDIA_TTL_SECONDS = 60 * 60
 
-app = FastAPI(title="DanceBuddy API", version=SCHEMA_VERSION)
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Run one throwaway inference at startup so the model loads and the slow first CPU pass is
+    # paid at boot rather than on a user's request.
+    with contextlib.suppress(Exception):
+        import numpy as np
+
+        from app.pipeline.adapters.yolo_adapter import YoloAdapter
+
+        YoloAdapter()._frame_to_pose(np.zeros((640, 640, 3), dtype="uint8"))
+    yield
+
+
+app = FastAPI(title="DanceBuddy API", version=SCHEMA_VERSION, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
