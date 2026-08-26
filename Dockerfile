@@ -25,4 +25,5 @@ RUN python -c "from ultralytics import YOLO; YOLO('yolov8n-pose.pt')"
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 7860
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "7860"]
+# Honor the host's $PORT (Cloud Run sets it) and fall back to 7860 for local runs.
+CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-7860}"]

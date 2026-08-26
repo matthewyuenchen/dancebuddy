@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
 
@@ -41,16 +42,20 @@ MEDIA_DIR.mkdir(exist_ok=True)
 MEDIA_TTL_SECONDS = 60 * 60
 
 
-@contextlib.asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Run one throwaway inference at startup so the model loads and the slow first CPU pass is
-    # paid at boot rather than on a user's request.
+def _warm_up() -> None:
+    # One throwaway inference so the model loads and the slow first CPU pass is paid ahead of
+    # a real request. Runs in a background thread so it never delays the server binding its port.
     with contextlib.suppress(Exception):
         import numpy as np
 
         from app.pipeline.adapters.yolo_adapter import YoloAdapter
 
         YoloAdapter()._frame_to_pose(np.zeros((640, 640, 3), dtype="uint8"))
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    threading.Thread(target=_warm_up, daemon=True).start()
     yield
 
 
