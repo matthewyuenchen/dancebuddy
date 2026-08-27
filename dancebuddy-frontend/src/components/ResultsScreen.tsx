@@ -38,67 +38,32 @@ export function ResultsScreen({ result, onReset }: Props) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [showScore, setShowScore] = useState(false);
-  const userElRef = useRef<HTMLVideoElement | null>(null);
-  const refElRef = useRef<HTMLVideoElement | null>(null);
   const indexRef = useRef(index);
   indexRef.current = index;
   const clamp = (i: number) => Math.max(0, Math.min(total - 1, i));
 
-  // Clock the overlay to the user video's real playback position so the skeleton matches the
-  // frame on screen, snapping to the nearest analyzed frame. A wall-clock watchdog keeps it
-  // moving if a video ever stalls, so playback can never freeze.
+  // Playback steps through frames on a wall clock; each frame both videos are seeked to that
+  // frame's timestamp (below), so the footage always matches the skeleton exactly. Seeking both
+  // (rather than playing them) keeps both visible even when the browser can't decode two videos
+  // playing at once, and the wall clock means the overlay never freezes.
   useEffect(() => {
     if (!playing) return;
     if (total <= 1) {
       setPlaying(false);
       return;
     }
-    const u = userElRef.current;
-    const r = refElRef.current;
-
     let start = indexRef.current;
     if (start >= total - 1) {
       start = 0;
       setIndex(0);
     }
-    try {
-      if (u) u.currentTime = frames[start].user.timestamp;
-      if (r) r.currentTime = frames[start].reference.timestamp;
-    } catch {
-      /* metadata not ready */
-    }
-    void u?.play().catch(() => {});
-    void r?.play().catch(() => {});
-
-    const nearest = (t: number) => {
+    const startTs = frames[start].user.timestamp;
+    const startWall = performance.now();
+    let raf = 0;
+    const tick = () => {
+      const t = startTs + (performance.now() - startWall) / 1000;
       let k = indexRef.current;
       while (k < total - 1 && frames[k + 1].user.timestamp <= t) k++;
-      if (
-        k < total - 1 &&
-        Math.abs(frames[k + 1].user.timestamp - t) < Math.abs(frames[k].user.timestamp - t)
-      ) {
-        k++;
-      }
-      return k;
-    };
-
-    let raf = 0;
-    let clock = frames[start].user.timestamp; // last known video time
-    let clockWall = performance.now();
-    const tick = () => {
-      const now = performance.now();
-      const vt = u ? u.currentTime : NaN;
-      let t: number;
-      if (Number.isFinite(vt) && Math.abs(vt - clock) > 1e-3) {
-        clock = vt; // video is advancing: trust its clock
-        clockWall = now;
-        t = vt;
-      } else {
-        // video stalled: after a short grace, keep the overlay moving on the wall clock
-        const stalledMs = now - clockWall;
-        t = stalledMs > 200 ? clock + stalledMs / 1000 : clock;
-      }
-      const k = nearest(t);
       if (k !== indexRef.current) setIndex(k);
       if (k >= total - 1) {
         setPlaying(false);
@@ -107,12 +72,7 @@ export function ResultsScreen({ result, onReset }: Props) {
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      u?.pause();
-      r?.pause();
-    };
+    return () => cancelAnimationFrame(raf);
   }, [playing, total, frames]);
 
   // fetch each clip as a blob → same-origin blob URL (cross-origin <video> won't load)
@@ -180,16 +140,12 @@ export function ResultsScreen({ result, onReset }: Props) {
           side={current.user}
           errorConnections={current.error_connections}
           label="Your video"
-          isPlaying={playing}
-          videoElRef={userElRef}
         />
         <VideoWithOverlay
           videoUrl={refSrc}
           side={current.reference}
           errorConnections={current.error_connections}
           label="Reference"
-          isPlaying={playing}
-          videoElRef={refElRef}
         />
       </div>
 
