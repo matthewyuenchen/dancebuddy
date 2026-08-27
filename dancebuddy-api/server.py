@@ -141,14 +141,12 @@ def _save_upload(upload: UploadFile, workdir: str, name: str) -> str:
 
 
 def _transcode(src: pathlib.Path | str, dst: pathlib.Path) -> None:
-    """Transcode any input video to a web-friendly h264 mp4 (720p, no audio, faststart). Uses a
-    dense, fixed keyframe interval so the player can seek to any frame near-instantly."""
+    """Transcode any input video to a web-friendly h264 mp4 (720p, no audio, faststart)."""
     try:
         subprocess.run(
             [
                 "ffmpeg", "-y", "-loglevel", "error", "-i", str(src),
                 "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-                "-g", "6", "-keyint_min", "6", "-sc_threshold", "0",
                 "-an", "-vf", "scale=-2:720", "-movflags", "+faststart", str(dst),
             ],
             check=True,
