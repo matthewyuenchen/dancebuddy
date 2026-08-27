@@ -36,6 +36,22 @@ export function VideoWithOverlay({
     };
   }, [videoElRef]);
 
+  // Release the video's decoder on unmount so Chrome reclaims it between analyses (its decoder
+  // pool is limited, and it's slow to free them otherwise).
+  useEffect(() => {
+    const v = videoRef.current;
+    return () => {
+      if (!v) return;
+      try {
+        v.pause();
+        v.removeAttribute("src");
+        v.load();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, []);
+
   // Seek to this frame's timestamp only when paused. During playback the parent lets the
   // video play natively, so seeking here would fight it.
   useEffect(() => {
