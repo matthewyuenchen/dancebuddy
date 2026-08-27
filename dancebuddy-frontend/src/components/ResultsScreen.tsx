@@ -44,39 +44,41 @@ export function ResultsScreen({ result, onReset }: Props) {
   indexRef.current = index;
   const clamp = (i: number) => Math.max(0, Math.min(total - 1, i));
 
-  // Native playback: play both videos and follow the user video's real position, mapping it
-  // to the matching aligned frame. The sync keeps the two clips at a constant time offset, so
-  // playing both at normal speed keeps them aligned without any per-frame seeking.
+  // Advance frames on a wall clock (independent of any video), so the overlay and frame bar
+  // never freeze even if a video stalls. Both videos also play natively alongside for smooth
+  // footage; the sync keeps them at a constant time offset, so real-time playback stays aligned.
   useEffect(() => {
     if (!playing) return;
-    const u = userElRef.current;
-    const r = refElRef.current;
-    if (!u || total <= 1) {
+    if (total <= 1) {
       setPlaying(false);
       return;
     }
+    const u = userElRef.current;
+    const r = refElRef.current;
 
     let start = indexRef.current;
     if (start >= total - 1) {
       start = 0;
       setIndex(0);
     }
+    const startTs = frames[start].user.timestamp;
+    const startWall = performance.now();
     try {
-      u.currentTime = frames[start].user.timestamp;
+      if (u) u.currentTime = frames[start].user.timestamp;
       if (r) r.currentTime = frames[start].reference.timestamp;
     } catch {
       /* metadata not ready */
     }
-    void u.play().catch(() => {});
+    void u?.play().catch(() => {});
     void r?.play().catch(() => {});
 
     let raf = 0;
     const tick = () => {
-      const t = u.currentTime;
+      const t = startTs + (performance.now() - startWall) / 1000;
       let k = indexRef.current;
       while (k < total - 1 && frames[k + 1].user.timestamp <= t) k++;
       if (k !== indexRef.current) setIndex(k);
-      if (k >= total - 1 || u.ended) {
+      if (k >= total - 1) {
         setPlaying(false);
         return;
       }
@@ -86,7 +88,7 @@ export function ResultsScreen({ result, onReset }: Props) {
 
     return () => {
       cancelAnimationFrame(raf);
-      u.pause();
+      u?.pause();
       r?.pause();
     };
   }, [playing, total, frames]);
