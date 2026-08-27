@@ -91,11 +91,15 @@ def analyze_endpoint(
         job = uuid.uuid4().hex
         job_dir = MEDIA_DIR / job
         job_dir.mkdir()
-        _transcode(user_path, job_dir / "user.mp4")
-        _transcode(ref_path, job_dir / "reference.mp4")
+        user_mp4 = job_dir / "user.mp4"
+        ref_mp4 = job_dir / "reference.mp4"
+        _transcode(user_path, user_mp4)
+        _transcode(ref_path, ref_mp4)
 
         try:
-            result = analyze(user_path, ref_path, level=LEVEL)
+            # Analyze the transcoded 720p files (faster to decode, and their timestamps match
+            # the exact video the browser plays back).
+            result = analyze(str(user_mp4), str(ref_mp4), level=LEVEL)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         except Exception as exc:
