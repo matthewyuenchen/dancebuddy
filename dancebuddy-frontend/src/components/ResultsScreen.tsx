@@ -44,9 +44,9 @@ export function ResultsScreen({ result, onReset }: Props) {
   indexRef.current = index;
   const clamp = (i: number) => Math.max(0, Math.min(total - 1, i));
 
-  // Advance frames on a wall clock (independent of any video), so the overlay and frame bar
-  // never freeze even if a video stalls. Both videos also play natively alongside for smooth
-  // footage; the sync keeps them at a constant time offset, so real-time playback stays aligned.
+  // Clock the overlay to the user video's real playback position so the skeleton matches the
+  // frame on screen, snapping to the nearest analyzed frame. A wall-clock watchdog keeps it
+  // moving if a video ever stalls, so playback can never freeze.
   useEffect(() => {
     if (!playing) return;
     if (total <= 1) {
@@ -61,8 +61,6 @@ export function ResultsScreen({ result, onReset }: Props) {
       start = 0;
       setIndex(0);
     }
-    const startTs = frames[start].user.timestamp;
-    const startWall = performance.now();
     try {
       if (u) u.currentTime = frames[start].user.timestamp;
       if (r) r.currentTime = frames[start].reference.timestamp;
@@ -72,11 +70,35 @@ export function ResultsScreen({ result, onReset }: Props) {
     void u?.play().catch(() => {});
     void r?.play().catch(() => {});
 
-    let raf = 0;
-    const tick = () => {
-      const t = startTs + (performance.now() - startWall) / 1000;
+    const nearest = (t: number) => {
       let k = indexRef.current;
       while (k < total - 1 && frames[k + 1].user.timestamp <= t) k++;
+      if (
+        k < total - 1 &&
+        Math.abs(frames[k + 1].user.timestamp - t) < Math.abs(frames[k].user.timestamp - t)
+      ) {
+        k++;
+      }
+      return k;
+    };
+
+    let raf = 0;
+    let clock = frames[start].user.timestamp; // last known video time
+    let clockWall = performance.now();
+    const tick = () => {
+      const now = performance.now();
+      const vt = u ? u.currentTime : NaN;
+      let t: number;
+      if (Number.isFinite(vt) && Math.abs(vt - clock) > 1e-3) {
+        clock = vt; // video is advancing: trust its clock
+        clockWall = now;
+        t = vt;
+      } else {
+        // video stalled: after a short grace, keep the overlay moving on the wall clock
+        const stalledMs = now - clockWall;
+        t = stalledMs > 200 ? clock + stalledMs / 1000 : clock;
+      }
+      const k = nearest(t);
       if (k !== indexRef.current) setIndex(k);
       if (k >= total - 1) {
         setPlaying(false);
