@@ -8,9 +8,28 @@ interface DropzoneProps {
   onFile: (file: File | null) => void;
 }
 
+const MAX_DURATION_SEC = 60;
+
 function isVideo(file: File): boolean {
   const name = file.name.toLowerCase();
   return file.type.startsWith("video/") || name.endsWith(".mp4") || name.endsWith(".mov");
+}
+
+// Read a clip's duration via a throwaway <video>. Resolves null if the browser can't read it
+// (e.g. some HEVC files) so we don't wrongly block a valid upload.
+function readDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    const done = (d: number | null) => {
+      URL.revokeObjectURL(url);
+      resolve(d);
+    };
+    v.onloadedmetadata = () => done(Number.isFinite(v.duration) ? v.duration : null);
+    v.onerror = () => done(null);
+    v.src = url;
+  });
 }
 
 function prettySize(bytes: number): string {
@@ -21,14 +40,25 @@ function prettySize(bytes: number): string {
 export function Dropzone({ label, hint, file, onFile }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [rejected, setRejected] = useState(false);
+  const [error, setError] = useState("");
 
-  function pick(f: File | null) {
-    if (f && !isVideo(f)) {
-      setRejected(true);
+  async function pick(f: File | null) {
+    if (!f) {
+      setError("");
+      onFile(null);
       return;
     }
-    setRejected(false);
+    if (!isVideo(f)) {
+      setError("Please choose an .mp4 or .mov file.");
+      return;
+    }
+    const duration = await readDuration(f);
+    if (duration !== null && duration > MAX_DURATION_SEC) {
+      setError(`Please use a clip under ${MAX_DURATION_SEC} seconds (this one is ${Math.round(duration)}s).`);
+      onFile(null);
+      return;
+    }
+    setError("");
     onFile(f);
   }
 
@@ -82,9 +112,7 @@ export function Dropzone({ label, hint, file, onFile }: DropzoneProps) {
           </div>
         )}
       </button>
-      {rejected && (
-        <p className="mt-2 text-center text-xs text-diverge">Please choose an .mp4 or .mov file.</p>
-      )}
+      {error && <p className="mt-2 text-center text-xs text-diverge">{error}</p>}
     </div>
   );
 }

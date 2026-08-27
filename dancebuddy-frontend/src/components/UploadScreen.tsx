@@ -29,13 +29,13 @@ export function UploadScreen({ onAnalyze }: UploadScreenProps) {
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         <Dropzone
           label="Your video"
-          hint="Drop or click · .mp4 / .mov"
+          hint="Drop or click · .mp4 / .mov · ≤60s"
           file={userFile}
           onFile={setUserFile}
         />
         <Dropzone
           label="Reference video"
-          hint="Drop or click · .mp4 / .mov"
+          hint="Drop or click · .mp4 / .mov · ≤60s"
           file={referenceFile}
           onFile={setReferenceFile}
         />
