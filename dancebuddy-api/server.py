@@ -34,7 +34,7 @@ ALLOWED_ORIGINS = [
 ]
 ALLOWED_EXTENSIONS = {".mp4", ".mov"}
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024
-LEVEL = "high"
+LEVEL = "medium"  # 20 degrees per-limb tolerance before a limb counts as "off"
 SCHEMA_VERSION = "1.0"
 
 MEDIA_DIR = pathlib.Path(__file__).resolve().parent / "media"
